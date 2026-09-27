@@ -160,6 +160,12 @@ async def get_wishlist(code: str, participant_id: str):
     if participant is None:
         raise HTTPException(status_code=403, detail="Invalid participant")
 
-    ids = [ObjectId(pid) for pid in participant["wishlist"]]
+    ids = []
+    for pid in participant["wishlist"]:
+        try:
+            ids.append(ObjectId(pid))
+        except Exception:
+            continue
+
     players = await db.players.find({"_id": {"$in": ids}}).to_list(length=None)
     return [serialize_player(p) for p in players]
