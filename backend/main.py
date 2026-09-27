@@ -1,25 +1,34 @@
 import re
-from fastapi import FastAPI, Query, HTTPException
-from database import db
 import random
 import uuid
+from fastapi import FastAPI, Query, HTTPException
 from pydantic import BaseModel, Field
 from bson import ObjectId
+from database import db
 
 app = FastAPI()
+
 
 def serialize_player(player):
     player["_id"] = str(player["_id"])
     return player
 
+
+def make_code():
+    letters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return "".join(random.choices(letters, k=4))
+
+
 @app.get("/")
 def home():
     return {"message": "FIFA auction backend is running"}
+
 
 @app.get("/players/count")
 async def count_players():
     count = await db.players.count_documents({})
     return {"count": count}
+
 
 @app.get("/players")
 async def search_players(search: str = "", limit: int = Query(20, le=50)):
@@ -31,14 +40,10 @@ async def search_players(search: str = "", limit: int = Query(20, le=50)):
     players = await cursor.to_list(length=limit)
     return [serialize_player(p) for p in players]
 
+
 class CreateAuction(BaseModel):
     host_name: str = Field(min_length=1, max_length=20)
     budget: int = Field(gt=0)
-
-
-def make_code():
-    letters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    return "".join(random.choices(letters, k=4))
 
 
 @app.post("/auctions")
@@ -65,6 +70,7 @@ async def create_auction(data: CreateAuction):
     }
     await db.auctions.insert_one(auction)
     return {"code": code, "participant_id": host_id}
+
 
 class JoinAuction(BaseModel):
     name: str = Field(min_length=1, max_length=20)
@@ -111,6 +117,7 @@ async def get_auction(code: str):
             for p in auction["participants"]
         ],
     }
+
 
 class AddToWishlist(BaseModel):
     participant_id: str
@@ -169,3 +176,46 @@ async def get_wishlist(code: str, participant_id: str):
 
     players = await db.players.find({"_id": {"$in": ids}}).to_list(length=None)
     return [serialize_player(p) for p in players]
+
+
+class StartAuction(BaseModel):
+    participant_id: str
+
+
+@app.post("/auctions/{code}/start")
+async def start_auction(code: str, data: StartAuction):
+    auction = await db.auctions.find_one({"code": code.upper()})
+    if auction is None:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    if auction["state"] != "LOBBY":
+        raise HTTPException(status_code=400, detail="Auction already started")
+
+    if data.participant_id != auction["host_id"]:
+        raise HTTPException(status_code=403, detail="Only the host can start the auction")
+
+    if len(auction["participants"]) < 2:
+        raise HTTPException(status_code=400, detail="Need at least 2 participants")
+
+    for p in auction["participants"]:
+        if len(p["wishlist"]) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{p['name']} has an empty wishlist",
+            )
+
+    turn_order = [p["id"] for p in auction["participants"]]
+
+    await db.auctions.update_one(
+        {"code": auction["code"]},
+        {
+            "$set": {
+                "state": "BIDDING",
+                "turn_order": turn_order,
+                "current_turn_index": 0,
+                "current_player_id": None,
+                "bids": {},
+            }
+        },
+    )
+    return {"message": "Auction started", "turn_order": turn_order}
