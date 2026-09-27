@@ -4,6 +4,7 @@ from database import db
 import random
 import uuid
 from pydantic import BaseModel, Field
+from bson import ObjectId
 
 app = FastAPI()
 
@@ -110,3 +111,55 @@ async def get_auction(code: str):
             for p in auction["participants"]
         ],
     }
+
+class AddToWishlist(BaseModel):
+    participant_id: str
+    player_id: str
+
+
+@app.post("/auctions/{code}/wishlist")
+async def add_to_wishlist(code: str, data: AddToWishlist):
+    auction = await db.auctions.find_one({"code": code.upper()})
+    if auction is None:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    participant = next(
+        (p for p in auction["participants"] if p["id"] == data.participant_id), None
+    )
+    if participant is None:
+        raise HTTPException(status_code=403, detail="Invalid participant")
+
+    if data.player_id in participant["wishlist"]:
+        raise HTTPException(status_code=400, detail="Player already in wishlist")
+
+    try:
+        player_object_id = ObjectId(data.player_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid player id")
+
+    player = await db.players.find_one({"_id": player_object_id})
+    if player is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    await db.auctions.update_one(
+        {"code": auction["code"], "participants.id": data.participant_id},
+        {"$push": {"participants.$.wishlist": data.player_id}},
+    )
+    return {"message": f"{player['playerName']} added to wishlist"}
+
+
+@app.get("/auctions/{code}/wishlist/{participant_id}")
+async def get_wishlist(code: str, participant_id: str):
+    auction = await db.auctions.find_one({"code": code.upper()})
+    if auction is None:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    participant = next(
+        (p for p in auction["participants"] if p["id"] == participant_id), None
+    )
+    if participant is None:
+        raise HTTPException(status_code=403, detail="Invalid participant")
+
+    ids = [ObjectId(pid) for pid in participant["wishlist"]]
+    players = await db.players.find({"_id": {"$in": ids}}).to_list(length=None)
+    return [serialize_player(p) for p in players]
