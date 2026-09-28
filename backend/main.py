@@ -11,6 +11,94 @@ MIN_BID = 20
 
 app = FastAPI()
 
+async def resolve_round(auction):
+    names = {p["id"]: p["name"] for p in auction["participants"]}
+    bids = auction["bids"]
+    player_id = auction["current_player_id"]
+
+    player = await db.players.find_one({"_id": ObjectId(player_id)})
+    player_name = player["playerName"]
+
+    # Everyone's answers, by name, so phones can show them after the reveal
+    revealed = {names[pid]: amount for pid, amount in bids.items()}
+
+    # Only real numbers count; passes are None
+    numbers = {pid: amt for pid, amt in bids.items() if amt is not None}
+
+    next_index = (auction["current_turn_index"] + 1) % len(auction["turn_order"])
+
+    # Outcome 1: everyone passed
+    if not numbers:
+        await db.auctions.update_one(
+            {"code": auction["code"]},
+            {
+                "$set": {
+                    "current_player_id": None,
+                    "bids": {},
+                    "eligible_bidders": [],
+                    "tied_amount": None,
+                    "current_turn_index": next_index,
+                    "last_result": {
+                        "outcome": "unsold",
+                        "player": player_name,
+                        "bids": revealed,
+                    },
+                }
+            },
+        )
+        return
+
+    top = max(numbers.values())
+    winners = [pid for pid, amt in numbers.items() if amt == top]
+
+    # Outcome 3: tie, so re-bid between the tied friends only
+    if len(winners) > 1:
+        await db.auctions.update_one(
+            {"code": auction["code"]},
+            {
+                "$set": {
+                    "bids": {},
+                    "eligible_bidders": winners,
+                    "tied_amount": top,
+                    "last_result": {
+                        "outcome": "tie",
+                        "player": player_name,
+                        "amount": top,
+                        "tied": [names[pid] for pid in winners],
+                        "bids": revealed,
+                    },
+                }
+            },
+        )
+        return
+
+    # Outcome 2: one clear winner
+    winner_id = winners[0]
+    await db.auctions.update_one(
+        {"code": auction["code"], "participants.id": winner_id},
+        {
+            "$inc": {"participants.$.budget_left": -top},
+            "$push": {
+                "participants.$.won_players": player_id,
+                "sold_player_ids": player_id,
+            },
+            "$set": {
+                "current_player_id": None,
+                "bids": {},
+                "eligible_bidders": [],
+                "tied_amount": None,
+                "current_turn_index": next_index,
+                "last_result": {
+                    "outcome": "sold",
+                    "player": player_name,
+                    "winner": names[winner_id],
+                    "amount": top,
+                    "bids": revealed,
+                },
+            },
+        },
+    )
+
 
 def serialize_player(player):
     player["_id"] = str(player["_id"])
@@ -291,6 +379,9 @@ async def place_bid(code: str, data: PlaceBid):
     if participant is None:
         raise HTTPException(status_code=403, detail="Invalid participant")
 
+    if data.participant_id not in auction.get("eligible_bidders", []):
+        raise HTTPException(status_code=403, detail="You are not part of this bidding round")
+
     if data.passed:
         if data.amount is not None:
             raise HTTPException(status_code=400, detail="Cannot pass and bid at the same time")
@@ -300,6 +391,12 @@ async def place_bid(code: str, data: PlaceBid):
             raise HTTPException(status_code=400, detail="Send an amount, or pass")
         if data.amount < MIN_BID:
             raise HTTPException(status_code=400, detail=f"Minimum bid is {MIN_BID}")
+        tied_amount = auction.get("tied_amount")
+        if tied_amount is not None and data.amount <= tied_amount:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Re-bid must be higher than {tied_amount}",
+            )
         if data.amount > participant["budget_left"]:
             raise HTTPException(status_code=400, detail="Bid is higher than your budget")
         value = data.amount
@@ -313,6 +410,16 @@ async def place_bid(code: str, data: PlaceBid):
     )
     if result.modified_count == 0:
         raise HTTPException(status_code=400, detail="You already placed a bid")
+
+    # Has everyone eligible answered now?
+    updated = await db.auctions.find_one({"code": auction["code"]})
+    if all(pid in updated["bids"] for pid in updated["eligible_bidders"]):
+        claim = await db.auctions.update_one(
+            {"code": updated["code"], "bids": updated["bids"]},
+            {"$set": {"bids": {}}},
+        )
+        if claim.modified_count == 1:
+            await resolve_round(updated)
 
     return {"message": "Pass recorded" if data.passed else "Bid recorded"}
 
