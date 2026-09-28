@@ -215,7 +215,50 @@ async def start_auction(code: str, data: StartAuction):
                 "current_turn_index": 0,
                 "current_player_id": None,
                 "bids": {},
+                "sold_player_ids": [],
             }
         },
     )
     return {"message": "Auction started", "turn_order": turn_order}
+
+class CallPlayer(BaseModel):
+    participant_id: str
+    player_id: str
+
+
+@app.post("/auctions/{code}/call")
+async def call_player(code: str, data: CallPlayer):
+    auction = await db.auctions.find_one({"code": code.upper()})
+    if auction is None:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    if auction["state"] != "BIDDING":
+        raise HTTPException(status_code=400, detail="Auction is not in bidding state")
+
+    if auction.get("current_player_id") is not None:
+        raise HTTPException(status_code=400, detail="A player is already being auctioned")
+
+    current_turn_id = auction["turn_order"][auction["current_turn_index"]]
+    if data.participant_id != current_turn_id:
+        raise HTTPException(status_code=403, detail="It is not your turn")
+
+    caller = next(
+        (p for p in auction["participants"] if p["id"] == data.participant_id), None
+    )
+    if data.player_id not in caller["wishlist"]:
+        raise HTTPException(status_code=400, detail="Player is not in your wishlist")
+
+    sold_ids = auction.get("sold_player_ids", [])
+    if data.player_id in sold_ids:
+        raise HTTPException(status_code=400, detail="Player already sold")
+
+    await db.auctions.update_one(
+        {"code": auction["code"]},
+        {
+            "$set": {
+                "current_player_id": data.player_id,
+                "bids": {},
+            }
+        },
+    )
+    return {"message": "Player called, bidding is open", "player_id": data.player_id}
