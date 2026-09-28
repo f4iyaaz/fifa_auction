@@ -447,6 +447,16 @@ async def get_status(code: str, participant_id: str):
         if player:
             current_player = serialize_player(player)
 
+    rosters = []
+    for p in auction["participants"]:
+        won_ids = [ObjectId(pid) for pid in p["won_players"]]
+        won_players = await db.players.find({"_id": {"$in": won_ids}}).to_list(length=None)
+        rosters.append({
+            "name": p["name"],
+            "budget_left": p["budget_left"],
+            "won_players": [serialize_player(wp) for wp in won_players],
+        })
+
     return {
         "state": auction["state"],
         "current_turn": current_turn,
@@ -455,4 +465,6 @@ async def get_status(code: str, participant_id: str):
         "waiting_for": [names[pid] for pid in eligible if pid not in bids],
         "you_answered": participant_id in bids,
         "you_can_bid": participant_id in eligible and participant_id not in bids,
+        "last_result": auction.get("last_result"),
+        "rosters": rosters,
     }
