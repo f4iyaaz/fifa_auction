@@ -11,6 +11,9 @@ MIN_BID = 20
 
 app = FastAPI()
 
+def has_available_player(participant, sold_ids):
+    return any(pid not in sold_ids for pid in participant["wishlist"])
+
 async def resolve_round(auction):
     names = {p["id"]: p["name"] for p in auction["participants"]}
     bids = auction["bids"]
@@ -25,7 +28,25 @@ async def resolve_round(auction):
     # Only real numbers count; passes are None
     numbers = {pid: amt for pid, amt in bids.items() if amt is not None}
 
-    next_index = (auction["current_turn_index"] + 1) % len(auction["turn_order"])
+    # next_index = (auction["current_turn_index"] + 1) % len(auction["turn_order"])
+    sold_ids = auction.get("sold_player_ids", [])
+    if player_id not in sold_ids:
+        sold_ids = sold_ids + [player_id]  # this round's sale, if any, isn't saved to the doc yet
+
+    participants_by_id = {p["id"]: p for p in auction["participants"]}
+    turn_order = auction["turn_order"]
+    current_index = auction["current_turn_index"]
+
+    next_index = None
+    for step in range(1, len(turn_order) + 1):
+        candidate_index = (current_index + step) % len(turn_order)
+        candidate_id = turn_order[candidate_index]
+        if has_available_player(participants_by_id[candidate_id], sold_ids):
+            next_index = candidate_index
+            break
+
+    auction_finished = next_index is None
+
 
     # Outcome 1: everyone passed
     if not numbers:
@@ -38,6 +59,7 @@ async def resolve_round(auction):
                     "eligible_bidders": [],
                     "tied_amount": None,
                     "current_turn_index": next_index,
+                    "state": "FINISHED" if auction_finished else "BIDDING",
                     "last_result": {
                         "outcome": "unsold",
                         "player": player_name,
@@ -88,6 +110,7 @@ async def resolve_round(auction):
                 "eligible_bidders": [],
                 "tied_amount": None,
                 "current_turn_index": next_index,
+                "state": "FINISHED" if auction_finished else "BIDDING",
                 "last_result": {
                     "outcome": "sold",
                     "player": player_name,
@@ -438,7 +461,8 @@ async def get_status(code: str, participant_id: str):
 
     turn_order = auction.get("turn_order", [])
     turn_index = auction.get("current_turn_index", 0)
-    current_turn = names.get(turn_order[turn_index]) if turn_order else None
+    # current_turn = names.get(turn_order[turn_index]) if turn_order else None
+    current_turn = names.get(turn_order[turn_index]) if turn_order and turn_index is not None else None
 
     current_player = None
     player_id = auction.get("current_player_id")
