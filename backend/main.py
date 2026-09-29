@@ -6,10 +6,18 @@ from pydantic import BaseModel, Field
 from bson import ObjectId
 from database import db
 from typing import Optional
+from fastapi.middleware.cors import CORSMiddleware
 
 MIN_BID = 20
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def has_available_player(participant, sold_ids):
     return any(pid not in sold_ids for pid in participant["wishlist"])
@@ -226,6 +234,7 @@ async def get_auction(code: str):
         "code": auction["code"],
         "state": auction["state"],
         "budget": auction["budget"],
+        "host_id": auction["host_id"],
         "participants": [
             {"name": p["name"], "budget_left": p["budget_left"]}
             for p in auction["participants"]
