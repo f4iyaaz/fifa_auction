@@ -492,3 +492,32 @@ async def get_status(code: str, participant_id: str):
         "last_result": auction.get("last_result"),
         "rosters": rosters,
     }
+
+@app.get("/auctions/{code}/results")
+async def get_results(code: str):
+    auction = await db.auctions.find_one({"code": code.upper()})
+    if auction is None:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    if auction["state"] != "FINISHED":
+        raise HTTPException(status_code=400, detail="Auction is not finished yet")
+
+    squads = []
+    for p in auction["participants"]:
+        won_ids = [ObjectId(pid) for pid in p["won_players"]]
+        won_players = await db.players.find({"_id": {"$in": won_ids}}).to_list(length=None)
+        spent = auction["budget"] - p["budget_left"]
+        squads.append({
+            "name": p["name"],
+            "spent": spent,
+            "budget_left": p["budget_left"],
+            "players_won": len(won_players),
+            "squad": [serialize_player(wp) for wp in won_players],
+        })
+
+    squads.sort(key=lambda s: s["spent"], reverse=True)
+
+    return {
+        "code": auction["code"],
+        "squads": squads,
+    }
