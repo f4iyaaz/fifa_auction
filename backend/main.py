@@ -470,7 +470,6 @@ async def get_status(code: str, participant_id: str):
 
     turn_order = auction.get("turn_order", [])
     turn_index = auction.get("current_turn_index", 0)
-    # current_turn = names.get(turn_order[turn_index]) if turn_order else None
     current_turn = names.get(turn_order[turn_index]) if turn_order and turn_index is not None else None
 
     current_player = None
@@ -492,6 +491,7 @@ async def get_status(code: str, participant_id: str):
 
     return {
         "state": auction["state"],
+        "is_host": participant_id == auction["host_id"],
         "current_turn": current_turn,
         "current_player": current_player,
         "answered": [names[pid] for pid in bids],
