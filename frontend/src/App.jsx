@@ -172,7 +172,20 @@ function App() {
     );
   }
 
-  if (screen === "waiting") {
+  if (screen === "waiting" || (status && status.state === "BIDDING")) {
+    if (status && status.state === "BIDDING") {
+      return (
+        <div>
+          <h1>Bidding</h1>
+          <p>Current turn: {status.current_turn}</p>
+          <p>
+            Current player:{" "}
+            {status.current_player ? status.current_player.playerName : "None called yet"}
+          </p>
+        </div>
+      );
+    }
+
     const isHost = status && status.is_host;
 
     return (
