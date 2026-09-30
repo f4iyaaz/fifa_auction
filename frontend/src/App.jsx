@@ -8,9 +8,38 @@ function App() {
   const [budget, setBudget] = useState(500);
   const [message, setMessage] = useState("");
 
-  const [joinedCode, setJoinedCode] = useState(null);
-  const [participantId, setParticipantId] = useState(null);
-  const [auction, setAuction] = useState(null);
+  const [joinedCode, setJoinedCode] = useState(
+    () => localStorage.getItem("joinedCode") || null
+  );
+  const [participantId, setParticipantId] = useState(
+    () => localStorage.getItem("participantId") || null
+  );
+  const [status, setStatus] = useState(null);
+
+  const [screen, setScreen] = useState(() => {
+    const savedCode = localStorage.getItem("joinedCode");
+    const savedId = localStorage.getItem("participantId");
+    return savedCode && savedId ? "waiting" : "lobby";
+  });
+
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
+
+  function saveSession(newCode, newParticipantId) {
+    localStorage.setItem("joinedCode", newCode);
+    localStorage.setItem("participantId", newParticipantId);
+    setJoinedCode(newCode);
+    setParticipantId(newParticipantId);
+  }
+
+  function handleLeave() {
+    localStorage.removeItem("joinedCode");
+    localStorage.removeItem("participantId");
+    setJoinedCode(null);
+    setParticipantId(null);
+    setScreen("lobby");
+  }
 
   async function handleCreate() {
     const response = await fetch(`${API_URL}/auctions`, {
@@ -25,8 +54,8 @@ function App() {
       return;
     }
 
-    setJoinedCode(data.code);
-    setParticipantId(data.participant_id);
+    saveSession(data.code, data.participant_id);
+    setScreen("wishlist");
   }
 
   async function handleJoin() {
@@ -42,62 +71,130 @@ function App() {
       return;
     }
 
-    setJoinedCode(data.code);
-    setParticipantId(data.participant_id);
+    saveSession(data.code, data.participant_id);
+    setScreen("wishlist");
   }
 
   async function handleStart() {
-  const response = await fetch(`${API_URL}/auctions/${joinedCode}/start`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ participant_id: participantId }),
-  });
-  const data = await response.json();
+    const response = await fetch(`${API_URL}/auctions/${joinedCode}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId }),
+    });
+    const data = await response.json();
 
-  if (!response.ok) {
-    setMessage(data.detail);
-    return;
-  }
-
-  setMessage("Auction started!");
-}
-
-  useEffect(() => {
-    if (!joinedCode) return;
-
-    async function fetchAuction() {
-      const response = await fetch(`${API_URL}/auctions/${joinedCode}`);
-      const data = await response.json();
-      setAuction(data);
+    if (!response.ok) {
+      setMessage(data.detail);
+      return;
     }
 
-    fetchAuction();
-    const interval = setInterval(fetchAuction, 2000);
+    setMessage("Auction started!");
+  }
+
+  async function handleSearch() {
+    const response = await fetch(`${API_URL}/players?search=${search}`);
+    const data = await response.json();
+    setResults(data);
+  }
+
+  async function handleAddToWishlist(playerId) {
+    const response = await fetch(`${API_URL}/auctions/${joinedCode}/wishlist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, player_id: playerId }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      setMessage(data.detail);
+      return;
+    }
+
+    fetchWishlist();
+  }
+
+  async function fetchWishlist() {
+    const response = await fetch(
+      `${API_URL}/auctions/${joinedCode}/wishlist/${participantId}`
+    );
+    const data = await response.json();
+    setWishlist(data);
+  }
+
+  useEffect(() => {
+    if (!joinedCode || !participantId) return;
+
+    async function fetchStatus() {
+      const response = await fetch(
+        `${API_URL}/auctions/${joinedCode}/status/${participantId}`
+      );
+      const data = await response.json();
+      setStatus(data);
+    }
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 2000);
 
     return () => clearInterval(interval);
-  }, [joinedCode]);
+  }, [joinedCode, participantId]);
 
-  if (joinedCode && participantId) {
-  const isHost = auction && auction.host_id === participantId;
+  if (screen === "wishlist") {
+    return (
+      <div>
+        <h1>Build Your Wishlist</h1>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search player name"
+        />
+        <button onClick={handleSearch}>Search</button>
 
-  return (
-    <div>
-      <h1>Waiting Room</h1>
-      <p>Auction code: {joinedCode}</p>
-      <h3>Participants:</h3>
-      <ul>
-        {auction &&
-          auction.participants.map((p) => (
-            <li key={p.name}>
-              {p.name} — {p.budget_left} left
+        <ul>
+          {results.map((p) => (
+            <li key={p._id}>
+              {p.playerName} ({p.rating}) — {p.club}
+              <button onClick={() => handleAddToWishlist(p._id)}>Add</button>
             </li>
           ))}
-      </ul>
-      {isHost && <button onClick={handleStart}>Start Auction</button>}
-      <p style={{ color: "red" }}>{message}</p>
-    </div>
-  );
-}
+        </ul>
+
+        <h3>Your Wishlist ({wishlist.length}):</h3>
+        <ul>
+          {wishlist.map((p) => (
+            <li key={p._id}>{p.playerName}</li>
+          ))}
+        </ul>
+
+        <button onClick={() => setScreen("waiting")}>I'm Ready</button>
+        <p style={{ color: "red" }}>{message}</p>
+      </div>
+    );
+  }
+
+  if (screen === "waiting") {
+    const isHost = status && status.is_host;
+
+    return (
+      <div>
+        <h1>Waiting Room</h1>
+        <p>Auction code: {joinedCode}</p>
+        <h3>Participants:</h3>
+        <ul>
+          {status &&
+            status.rosters.map((p) => (
+              <li key={p.name}>
+                {p.name} — {p.budget_left} left
+              </li>
+            ))}
+        </ul>
+        {isHost && <button onClick={handleStart}>Start Auction</button>}
+        <button onClick={handleLeave}>Leave (for testing)</button>
+        <p style={{ color: "red" }}>{message}</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1>FIFA Auction</h1>
