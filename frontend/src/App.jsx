@@ -121,6 +121,22 @@ function App() {
     setWishlist(data);
   }
 
+  async function handleCallPlayer(playerId) {
+    const response = await fetch(`${API_URL}/auctions/${joinedCode}/call`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, player_id: playerId }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      setMessage(data.detail);
+      return;
+    }
+
+    setMessage("");
+  }
+
   useEffect(() => {
     if (!joinedCode || !participantId) return;
 
@@ -178,10 +194,30 @@ function App() {
         <div>
           <h1>Bidding</h1>
           <p>Current turn: {status.current_turn}</p>
-          <p>
-            Current player:{" "}
-            {status.current_player ? status.current_player.playerName : "None called yet"}
-          </p>
+
+          {!status.current_player && status.is_your_turn && (
+            <div>
+              <h3>It's your turn! Call a player:</h3>
+              <ul>
+                {wishlist.map((p) => (
+                  <li key={p._id}>
+                    {p.playerName}
+                    <button onClick={() => handleCallPlayer(p._id)}>Call</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {!status.current_player && !status.is_your_turn && (
+            <p>Waiting for {status.current_turn} to call a player...</p>
+          )}
+
+          {status.current_player && (
+            <p>Current player: {status.current_player.playerName}</p>
+          )}
+
+          <p style={{ color: "red" }}>{message}</p>
         </div>
       );
     }
