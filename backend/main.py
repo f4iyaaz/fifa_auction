@@ -490,17 +490,18 @@ async def get_status(code: str, participant_id: str):
         })
 
     return {
-        "state": auction["state"],
-        "is_host": participant_id == auction["host_id"],
-        "current_turn": current_turn,
-        "current_player": current_player,
-        "answered": [names[pid] for pid in bids],
-        "waiting_for": [names[pid] for pid in eligible if pid not in bids],
-        "you_answered": participant_id in bids,
-        "you_can_bid": participant_id in eligible and participant_id not in bids,
-        "last_result": auction.get("last_result"),
-        "rosters": rosters,
-    }
+    "state": auction["state"],
+    "is_host": participant_id == auction["host_id"],
+    "is_your_turn": bool(turn_order) and turn_index is not None and participant_id == turn_order[turn_index],
+    "current_turn": current_turn,
+    "current_player": current_player,
+    "answered": [names[pid] for pid in bids],
+    "waiting_for": [names[pid] for pid in eligible if pid not in bids],
+    "you_answered": participant_id in bids,
+    "you_can_bid": participant_id in eligible and participant_id not in bids,
+    "last_result": auction.get("last_result"),
+    "rosters": rosters,
+}
 
 @app.get("/auctions/{code}/results")
 async def get_results(code: str):
