@@ -25,6 +25,13 @@ function App() {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState([]);
   const [wishlist, setWishlist] = useState([]);
+  const [bidAmount, setBidAmount] = useState("");
+
+  function isPlayerSold(playerId, status) {
+    return status.rosters.some((r) =>
+      r.won_players.some((wp) => wp._id === playerId)
+    );
+  }
 
   function saveSession(newCode, newParticipantId) {
     localStorage.setItem("joinedCode", newCode);
@@ -137,6 +144,40 @@ function App() {
     setMessage("");
   }
 
+  async function handleBid() {
+    const response = await fetch(`${API_URL}/auctions/${joinedCode}/bid`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, amount: Number(bidAmount) }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      setMessage(data.detail);
+      return;
+    }
+
+    setMessage("");
+    setBidAmount("");
+  }
+
+  async function handlePass() {
+    const response = await fetch(`${API_URL}/auctions/${joinedCode}/bid`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, passed: true }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      setMessage(data.detail);
+      return;
+    }
+
+    setMessage("");
+    setBidAmount("");
+  }
+
   useEffect(() => {
     if (!joinedCode || !participantId) return;
 
@@ -153,6 +194,14 @@ function App() {
 
     return () => clearInterval(interval);
   }, [joinedCode, participantId]);
+
+  useEffect(() => {
+    if (!joinedCode || !participantId) return;
+    if (!status || status.state !== "BIDDING") return;
+    if (wishlist.length > 0) return;
+
+    fetchWishlist();
+  }, [status, joinedCode, participantId]);
 
   if (screen === "wishlist") {
     return (
@@ -199,12 +248,14 @@ function App() {
             <div>
               <h3>It's your turn! Call a player:</h3>
               <ul>
-                {wishlist.map((p) => (
-                  <li key={p._id}>
-                    {p.playerName}
-                    <button onClick={() => handleCallPlayer(p._id)}>Call</button>
-                  </li>
-                ))}
+                {wishlist
+                  .filter((p) => !isPlayerSold(p._id, status))
+                  .map((p) => (
+                    <li key={p._id}>
+                      {p.playerName}
+                      <button onClick={() => handleCallPlayer(p._id)}>Call</button>
+                    </li>
+                  ))}
               </ul>
             </div>
           )}
@@ -214,7 +265,33 @@ function App() {
           )}
 
           {status.current_player && (
-            <p>Current player: {status.current_player.playerName}</p>
+            <div>
+              <h3>Current player: {status.current_player.playerName}</h3>
+              <p>
+                {status.current_player.club} — Rating {status.current_player.rating}
+              </p>
+
+              {status.you_can_bid && (
+                <div>
+                  <input
+                    type="number"
+                    value={bidAmount}
+                    onChange={(e) => setBidAmount(e.target.value)}
+                    placeholder="Your bid"
+                  />
+                  <button onClick={handleBid}>Bid</button>
+                  <button onClick={handlePass}>Pass</button>
+                </div>
+              )}
+
+              {!status.you_can_bid && status.you_answered && (
+                <p>Waiting for: {status.waiting_for.join(", ")}</p>
+              )}
+
+              {!status.you_can_bid && !status.you_answered && (
+                <p>You are not part of this bidding round.</p>
+              )}
+            </div>
           )}
 
           <p style={{ color: "red" }}>{message}</p>
