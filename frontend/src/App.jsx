@@ -208,39 +208,60 @@ function App() {
   function renderGameContent() {
     if (screen === "wishlist") {
       return (
-        <div>
+        <div className="page">
           <h1>Build Your Wishlist</h1>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search player name"
-          />
-          <button onClick={handleSearch}>Search</button>
 
-          <ul>
-            {results.map((p) => (
-              <li key={p._id}>
-                {p.playerName} ({p.rating}) — {p.club}
-                <button onClick={() => handleAddToWishlist(p._id)}>Add</button>
-              </li>
-            ))}
-          </ul>
+          <div className="search-row">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search player name"
+            />
+            <button className="btn-sm" onClick={handleSearch}>
+              Search
+            </button>
+          </div>
 
-          <h3>Your Wishlist ({wishlist.length}):</h3>
-          <ul>
-            {wishlist.map((p) => (
-              <li key={p._id}>{p.playerName}</li>
-            ))}
-          </ul>
+          {results.map((p) => (
+            <div className="player-row" key={p._id}>
+              <div className="player-info">
+                <span className="player-name">{p.playerName}</span>
+                <span className="player-meta">
+                  {p.position} — {p.club}
+                </span>
+              </div>
+              <div className="player-row-main">
+                <span className="player-rating">{p.rating}</span>
+                <button className="btn-sm" onClick={() => handleAddToWishlist(p._id)}>
+                  Add
+                </button>
+              </div>
+            </div>
+          ))}
 
-          <button onClick={() => setScreen("waiting")} disabled={wishlist.length === 0}>
+          <div className="section-title">Your Wishlist ({wishlist.length})</div>
+          {wishlist.map((p) => (
+            <div className="player-row" key={p._id}>
+              <div className="player-info">
+                <span className="player-name">{p.playerName}</span>
+              </div>
+              <span className="player-rating">{p.rating}</span>
+            </div>
+          ))}
+
+          <button
+            className="btn-gold"
+            style={{ width: "100%", marginTop: "20px" }}
+            onClick={() => setScreen("waiting")}
+            disabled={wishlist.length === 0}
+          >
             I'm Ready
           </button>
           {wishlist.length === 0 && (
-            <p style={{ color: "red" }}>Add at least one player before continuing.</p>
+            <p className="error-text">Add at least one player before continuing.</p>
           )}
-          <p style={{ color: "red" }}>{message}</p>
+          {message && <p className="error-text">{message}</p>}
         </div>
       );
     }
@@ -255,82 +276,97 @@ function App() {
 
       if (status && status.state === "BIDDING") {
         return (
-          <div>
+          <div className="page">
             <h1>Bidding</h1>
-            <p>Current turn: {status.current_turn}</p>
+            <p className="turn-banner">Current turn: {status.current_turn}</p>
 
             {status.last_result && (
-              <div style={{ border: "1px solid gray", padding: "8px", marginBottom: "8px" }}>
+              <div className="result-banner">
                 {status.last_result.outcome === "sold" && (
-                  <p>
+                  <>
                     {status.last_result.winner} won {status.last_result.player} for{" "}
                     {status.last_result.amount}
-                  </p>
+                  </>
                 )}
                 {status.last_result.outcome === "unsold" && (
-                  <p>{status.last_result.player} went unsold (everyone passed)</p>
+                  <>{status.last_result.player} went unsold (everyone passed)</>
                 )}
                 {status.last_result.outcome === "tie" && (
-                  <p>
+                  <>
                     Tie at {status.last_result.amount} between{" "}
                     {status.last_result.tied.join(" and ")} for {status.last_result.player}.
                     Re-bidding...
-                  </p>
+                  </>
                 )}
               </div>
             )}
 
             {!status.current_player && status.is_your_turn && (
               <div>
-                <h3>It's your turn! Call a player:</h3>
-                <ul>
-                  {wishlist
-                    .filter((p) => !isPlayerSold(p._id, status))
-                    .map((p) => (
-                      <li key={p._id}>
-                        {p.playerName}
-                        <button onClick={() => handleCallPlayer(p._id)}>Call</button>
-                      </li>
-                    ))}
-                </ul>
+                <div className="section-title">It's your turn — call a player</div>
+                {wishlist
+                  .filter((p) => !isPlayerSold(p._id, status))
+                  .map((p) => (
+                    <div className="player-row" key={p._id}>
+                      <div className="player-info">
+                        <span className="player-name">{p.playerName}</span>
+                      </div>
+                      <div className="player-row-main">
+                        <span className="player-rating">{p.rating}</span>
+                        <button
+                          className="btn-sm btn-gold"
+                          onClick={() => handleCallPlayer(p._id)}
+                        >
+                          Call
+                        </button>
+                      </div>
+                    </div>
+                  ))}
               </div>
             )}
 
             {!status.current_player && !status.is_your_turn && (
-              <p>Waiting for {status.current_turn} to call a player...</p>
+              <p className="waiting-text">
+                Waiting for {status.current_turn} to call a player...
+              </p>
             )}
 
             {status.current_player && (
-              <div>
-                <h3>Current player: {status.current_player.playerName}</h3>
-                <p>
-                  {status.current_player.club} — Rating {status.current_player.rating}
-                </p>
+              <div className="on-the-clock">
+                <div className="player-meta">{status.current_player.club}</div>
+                <h2>{status.current_player.playerName}</h2>
+                <span className="player-rating">{status.current_player.rating}</span>
 
                 {status.you_can_bid && (
-                  <div>
+                  <div className="bid-row">
                     <input
                       type="number"
                       value={bidAmount}
                       onChange={(e) => setBidAmount(e.target.value)}
-                      placeholder="Your bid"
+                      placeholder="Bid"
                     />
-                    <button onClick={handleBid}>Bid</button>
-                    <button onClick={handlePass}>Pass</button>
+                    <button className="btn-gold" onClick={handleBid}>
+                      Bid
+                    </button>
+                    <button className="btn-pass" onClick={handlePass}>
+                      Pass
+                    </button>
                   </div>
                 )}
 
                 {!status.you_can_bid && status.you_answered && (
-                  <p>Waiting for: {status.waiting_for.join(", ")}</p>
+                  <p className="waiting-text">
+                    Waiting for: {status.waiting_for.join(", ")}
+                  </p>
                 )}
 
                 {!status.you_can_bid && !status.you_answered && (
-                  <p>You are not part of this bidding round.</p>
+                  <p className="waiting-text">You are not part of this bidding round.</p>
                 )}
               </div>
             )}
 
-            <p style={{ color: "red" }}>{message}</p>
+            {message && <p className="error-text">{message}</p>}
           </div>
         );
       }
@@ -338,21 +374,32 @@ function App() {
       const isHost = status && status.is_host;
 
       return (
-        <div>
+        <div className="page">
           <h1>Waiting Room</h1>
           <p>Auction code: {joinedCode}</p>
-          <h3>Participants:</h3>
-          <ul>
-            {status &&
-              status.rosters.map((p) => (
-                <li key={p.name}>
-                  {p.name} — {p.budget_left} left
-                </li>
-              ))}
-          </ul>
-          {isHost && <button onClick={handleStart}>Start Auction</button>}
-          <button onClick={handleLeave}>Leave (for testing)</button>
-          <p style={{ color: "red" }}>{message}</p>
+          <div className="section-title">Participants</div>
+          {status &&
+            status.rosters.map((p) => (
+              <div className="player-row" key={p.name}>
+                <div className="player-info">
+                  <span className="player-name">{p.name}</span>
+                </div>
+                <span className="player-meta">{p.budget_left} left</span>
+              </div>
+            ))}
+          {isHost && (
+            <button
+              className="btn-gold"
+              style={{ width: "100%", marginTop: "16px" }}
+              onClick={handleStart}
+            >
+              Start Auction
+            </button>
+          )}
+          <button style={{ width: "100%", marginTop: "10px" }} onClick={handleLeave}>
+            Leave (for testing)
+          </button>
+          {message && <p className="error-text">{message}</p>}
         </div>
       );
     }
@@ -362,60 +409,71 @@ function App() {
 
   if (!joinedCode) {
     return (
-      <div>
-        <h1>FIFA Auction</h1>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
-        />
-        <input
-          type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Join code"
-        />
-        <input
-          type="number"
-          value={budget}
-          onChange={(e) => setBudget(e.target.value)}
-          placeholder="Budget"
-        />
-        <button onClick={handleCreate}>Create Auction</button>
-        <button onClick={handleJoin}>Join Auction</button>
-        <p style={{ color: "red" }}>{message}</p>
+      <div className="lobby">
+        <div className="lobby-card">
+          <h1>FIFA Auction</h1>
+          <p className="lobby-sub">Draft your dream squad, one bid at a time.</p>
+
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+          />
+          <input
+            type="number"
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+            placeholder="Budget"
+          />
+          <button className="btn-gold" onClick={handleCreate}>
+            Create Auction
+          </button>
+
+          <div className="lobby-divider">or join with a code</div>
+
+          <input
+            type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Join code"
+          />
+          <button onClick={handleJoin}>Join Auction</button>
+
+          {message && <p className="error-text">{message}</p>}
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex" }}>
-      <nav style={{ width: "150px", borderRight: "1px solid gray", padding: "8px" }}>
-        <p
-          onClick={() => setPage("game")}
-          style={{ cursor: "pointer", fontWeight: page === "game" ? "bold" : "normal" }}
-        >
-          Game
-        </p>
-        <p
-          onClick={() => setPage("rosters")}
-          style={{ cursor: "pointer", fontWeight: page === "rosters" ? "bold" : "normal" }}
-        >
-          All Rosters
-        </p>
-        <p
-          onClick={() => setPage("stats")}
-          style={{ cursor: "pointer", fontWeight: page === "stats" ? "bold" : "normal" }}
-        >
-          Team Stats
-        </p>
-      </nav>
-      <div style={{ flex: 1, padding: "8px" }}>
+    <div className="app-shell">
+      <div className="app-content">
         {page === "game" && renderGameContent()}
         {page === "rosters" && <RostersPage status={status} />}
         {page === "stats" && <StatsPage status={status} />}
       </div>
+
+      <nav className="tab-bar">
+        <button
+          className={`tab-btn ${page === "game" ? "tab-active" : ""}`}
+          onClick={() => setPage("game")}
+        >
+          Game
+        </button>
+        <button
+          className={`tab-btn ${page === "rosters" ? "tab-active" : ""}`}
+          onClick={() => setPage("rosters")}
+        >
+          Rosters
+        </button>
+        <button
+          className={`tab-btn ${page === "stats" ? "tab-active" : ""}`}
+          onClick={() => setPage("stats")}
+        >
+          Stats
+        </button>
+      </nav>
     </div>
   );
 }
@@ -434,27 +492,25 @@ function ResultsScreen({ code }) {
   }, [code]);
 
   if (!results) {
-    return <p>Loading results...</p>;
+    return <p className="page">Loading results...</p>;
   }
 
   return (
-    <div>
+    <div className="page">
       <h1>Final Results</h1>
       {results.squads.map((squad) => (
-        <div
-          key={squad.name}
-          style={{ border: "1px solid gray", padding: "8px", marginBottom: "8px" }}
-        >
-          <h3>
+        <div key={squad.name} style={{ marginBottom: "20px" }}>
+          <div className="section-title">
             {squad.name} — spent {squad.spent}, {squad.budget_left} left
-          </h3>
-          <ul>
-            {squad.squad.map((p) => (
-              <li key={p._id}>
-                {p.playerName} ({p.rating})
-              </li>
-            ))}
-          </ul>
+          </div>
+          {squad.squad.map((p) => (
+            <div className="player-row" key={p._id}>
+              <div className="player-info">
+                <span className="player-name">{p.playerName}</span>
+              </div>
+              <span className="player-rating">{p.rating}</span>
+            </div>
+          ))}
         </div>
       ))}
     </div>
@@ -462,27 +518,25 @@ function ResultsScreen({ code }) {
 }
 
 function RostersPage({ status }) {
-  if (!status) return <p>Loading...</p>;
+  if (!status) return <p className="page">Loading...</p>;
 
   return (
-    <div>
+    <div className="page">
       <h1>All Rosters</h1>
       {status.rosters.map((r) => (
-        <div
-          key={r.name}
-          style={{ border: "1px solid gray", padding: "8px", marginBottom: "8px" }}
-        >
-          <h3>
+        <div key={r.name} style={{ marginBottom: "20px" }}>
+          <div className="section-title">
             {r.name} — {r.budget_left} left
-          </h3>
-          <ul>
-            {r.won_players.length === 0 && <li>No players yet</li>}
-            {r.won_players.map((p) => (
-              <li key={p._id}>
-                {p.playerName} ({p.rating})
-              </li>
-            ))}
-          </ul>
+          </div>
+          {r.won_players.length === 0 && <p className="waiting-text">No players yet</p>}
+          {r.won_players.map((p) => (
+            <div className="player-row" key={p._id}>
+              <div className="player-info">
+                <span className="player-name">{p.playerName}</span>
+              </div>
+              <span className="player-rating">{p.rating}</span>
+            </div>
+          ))}
         </div>
       ))}
     </div>
@@ -490,33 +544,37 @@ function RostersPage({ status }) {
 }
 
 function StatsPage({ status }) {
-  if (!status) return <p>Loading...</p>;
+  if (!status) return <p className="page">Loading...</p>;
 
   return (
-    <div>
+    <div className="page">
       <h1>Team Stats</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>Participant</th>
-            <th>Highest Rated Player</th>
-          </tr>
-        </thead>
-        <tbody>
-          {status.rosters.map((r) => {
-            const best = r.won_players.reduce(
-              (top, p) => (!top || p.rating > top.rating ? p : top),
-              null
-            );
-            return (
-              <tr key={r.name}>
-                <td>{r.name}</td>
-                <td>{best ? `${best.playerName} (${best.rating})` : "—"}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      {status.rosters.map((r) => {
+        const best = r.won_players.reduce(
+          (top, p) => (!top || p.rating > top.rating ? p : top),
+          null
+        );
+        return (
+          <div className="player-row" key={r.name}>
+            <div className="player-info">
+              <span className="player-name">{r.name}</span>
+              <span className="player-meta">Highest rated</span>
+            </div>
+            <div className="player-row-main">
+              {best ? (
+                <>
+                  <span className="player-name" style={{ marginRight: "10px" }}>
+                    {best.playerName}
+                  </span>
+                  <span className="player-rating">{best.rating}</span>
+                </>
+              ) : (
+                <span className="player-meta">—</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
