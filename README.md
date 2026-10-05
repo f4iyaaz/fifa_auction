@@ -111,7 +111,7 @@ fifa_auction/
 │ ├── App.jsx # All screens, state, and API calls
 │ └── index.css # Design tokens + global styles
 └── node_modules/ # Installed packages (not committed)
-
+````
 
 ## Getting Started
 
