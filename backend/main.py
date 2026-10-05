@@ -153,10 +153,19 @@ async def count_players():
 
 
 @app.get("/players")
-async def search_players(search: str = "", limit: int = Query(20, le=50)):
+async def search_players(
+    search: str = "",
+    position: str = "",
+    min_rating: int = 0,
+    limit: int = Query(20, le=50),
+):
     query = {}
     if search:
         query["playerName"] = {"$regex": re.escape(search), "$options": "i"}
+    if position:
+        query["position"] = {"$regex": re.escape(position), "$options": "i"}
+    if min_rating > 0:
+        query["rating"] = {"$gte": min_rating}
 
     cursor = db.players.find(query).sort("rating", -1).limit(limit)
     players = await cursor.to_list(length=limit)
