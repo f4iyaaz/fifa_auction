@@ -138,6 +138,18 @@ ul {
   flex: 1;
 }
 
+.search-results {
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.wishlist-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .player-row {
   display: flex;
   align-items: center;
@@ -275,6 +287,20 @@ ul {
   color: var(--gold);
 }
 
+.rosters-grid {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin: 0 -16px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.roster-column {
+  flex: 0 0 240px;
+}
+
 @media (min-width: 720px) {
   .app-shell {
     display: flex;
@@ -301,5 +327,28 @@ ul {
     flex: none;
     text-align: left;
     padding-left: 14px;
+  }
+
+  .rosters-grid {
+    overflow-x: visible;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .roster-column {
+    flex: 1 1 0;
+  }
+
+  .wishlist-layout {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  .wishlist-search-col,
+  .wishlist-col {
+    flex: 1;
+    min-width: 0;
   }
 }

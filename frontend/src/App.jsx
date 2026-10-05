@@ -19,7 +19,9 @@ function App() {
   const [screen, setScreen] = useState(() => {
     const savedCode = localStorage.getItem("joinedCode");
     const savedId = localStorage.getItem("participantId");
-    return savedCode && savedId ? "waiting" : "lobby";
+    const savedScreen = localStorage.getItem("screen");
+    if (savedCode && savedId && savedScreen) return savedScreen;
+    return savedCode && savedId ? "wishlist" : "lobby";
   });
 
   const [page, setPage] = useState("game");
@@ -28,6 +30,11 @@ function App() {
   const [results, setResults] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [bidAmount, setBidAmount] = useState("");
+
+  function changeScreen(newScreen) {
+    localStorage.setItem("screen", newScreen);
+    setScreen(newScreen);
+  }
 
   function isPlayerSold(playerId, status) {
     return status.rosters.some((r) =>
@@ -45,6 +52,7 @@ function App() {
   function handleLeave() {
     localStorage.removeItem("joinedCode");
     localStorage.removeItem("participantId");
+    localStorage.removeItem("screen");
     setJoinedCode(null);
     setParticipantId(null);
     setScreen("lobby");
@@ -64,7 +72,7 @@ function App() {
     }
 
     saveSession(data.code, data.participant_id);
-    setScreen("wishlist");
+    changeScreen("wishlist");
   }
 
   async function handleJoin() {
@@ -81,7 +89,7 @@ function App() {
     }
 
     saveSession(data.code, data.participant_id);
-    setScreen("wishlist");
+    changeScreen("wishlist");
   }
 
   async function handleStart() {
@@ -199,11 +207,11 @@ function App() {
 
   useEffect(() => {
     if (!joinedCode || !participantId) return;
-    if (!status || status.state !== "BIDDING") return;
+    if (screen !== "wishlist" && !(status && status.state === "BIDDING")) return;
     if (wishlist.length > 0) return;
 
     fetchWishlist();
-  }, [status, joinedCode, participantId]);
+  }, [screen, status, joinedCode, participantId]);
 
   function renderGameContent() {
     if (screen === "wishlist") {
@@ -211,49 +219,60 @@ function App() {
         <div className="page">
           <h1>Build Your Wishlist</h1>
 
-          <div className="search-row">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search player name"
-            />
-            <button className="btn-sm" onClick={handleSearch}>
-              Search
-            </button>
-          </div>
-
-          {results.map((p) => (
-            <div className="player-row" key={p._id}>
-              <div className="player-info">
-                <span className="player-name">{p.playerName}</span>
-                <span className="player-meta">
-                  {p.position} — {p.club}
-                </span>
-              </div>
-              <div className="player-row-main">
-                <span className="player-rating">{p.rating}</span>
-                <button className="btn-sm" onClick={() => handleAddToWishlist(p._id)}>
-                  Add
+          <div className="wishlist-layout">
+            <div className="wishlist-search-col">
+              <div className="search-row">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search player name"
+                />
+                <button className="btn-sm" onClick={handleSearch}>
+                  Search
                 </button>
               </div>
-            </div>
-          ))}
 
-          <div className="section-title">Your Wishlist ({wishlist.length})</div>
-          {wishlist.map((p) => (
-            <div className="player-row" key={p._id}>
-              <div className="player-info">
-                <span className="player-name">{p.playerName}</span>
+              <div className="search-results">
+                {results.map((p) => (
+                  <div className="player-row" key={p._id}>
+                    <div className="player-info">
+                      <span className="player-name">{p.playerName}</span>
+                      <span className="player-meta">
+                        {p.position} — {p.club}
+                      </span>
+                    </div>
+                    <div className="player-row-main">
+                      <span className="player-rating">{p.rating}</span>
+                      <button
+                        className="btn-sm"
+                        onClick={() => handleAddToWishlist(p._id)}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <span className="player-rating">{p.rating}</span>
             </div>
-          ))}
+
+            <div className="wishlist-col">
+              <div className="section-title">Your Wishlist ({wishlist.length})</div>
+              {wishlist.map((p) => (
+                <div className="player-row" key={p._id}>
+                  <div className="player-info">
+                    <span className="player-name">{p.playerName}</span>
+                  </div>
+                  <span className="player-rating">{p.rating}</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <button
             className="btn-gold"
             style={{ width: "100%", marginTop: "20px" }}
-            onClick={() => setScreen("waiting")}
+            onClick={() => changeScreen("waiting")}
             disabled={wishlist.length === 0}
           >
             I'm Ready
@@ -498,21 +517,23 @@ function ResultsScreen({ code }) {
   return (
     <div className="page">
       <h1>Final Results</h1>
-      {results.squads.map((squad) => (
-        <div key={squad.name} style={{ marginBottom: "20px" }}>
-          <div className="section-title">
-            {squad.name} — spent {squad.spent}, {squad.budget_left} left
-          </div>
-          {squad.squad.map((p) => (
-            <div className="player-row" key={p._id}>
-              <div className="player-info">
-                <span className="player-name">{p.playerName}</span>
-              </div>
-              <span className="player-rating">{p.rating}</span>
+      <div className="rosters-grid">
+        {results.squads.map((squad) => (
+          <div className="roster-column" key={squad.name}>
+            <div className="section-title">
+              {squad.name} — spent {squad.spent}, {squad.budget_left} left
             </div>
-          ))}
-        </div>
-      ))}
+            {squad.squad.map((p) => (
+              <div className="player-row" key={p._id}>
+                <div className="player-info">
+                  <span className="player-name">{p.playerName}</span>
+                </div>
+                <span className="player-rating">{p.rating}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -523,22 +544,24 @@ function RostersPage({ status }) {
   return (
     <div className="page">
       <h1>All Rosters</h1>
-      {status.rosters.map((r) => (
-        <div key={r.name} style={{ marginBottom: "20px" }}>
-          <div className="section-title">
-            {r.name} — {r.budget_left} left
-          </div>
-          {r.won_players.length === 0 && <p className="waiting-text">No players yet</p>}
-          {r.won_players.map((p) => (
-            <div className="player-row" key={p._id}>
-              <div className="player-info">
-                <span className="player-name">{p.playerName}</span>
-              </div>
-              <span className="player-rating">{p.rating}</span>
+      <div className="rosters-grid">
+        {status.rosters.map((r) => (
+          <div className="roster-column" key={r.name}>
+            <div className="section-title">
+              {r.name} — {r.budget_left} left
             </div>
-          ))}
-        </div>
-      ))}
+            {r.won_players.length === 0 && <p className="waiting-text">No players yet</p>}
+            {r.won_players.map((p) => (
+              <div className="player-row" key={p._id}>
+                <div className="player-info">
+                  <span className="player-name">{p.playerName}</span>
+                </div>
+                <span className="player-rating">{p.rating}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
