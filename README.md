@@ -324,11 +324,3 @@ responsive component.
 - No authentication — participant identity relies solely on a locally
   stored, unguessable ID (UUID), with no password or account system.
 
-## Roadmap
-
-- [ ] Deploy backend (Render/Fly.io), frontend (Vercel/Netlify), and
-      database (MongoDB Atlas) for play without a shared Wi-Fi network.
-- [ ] Replace polling with WebSockets for lower-latency live updates.
-- [ ] Add a cap or cooldown on re-calling unsold players.
-- [ ] Position-based squad stats (highest-rated GK/DEF/MID/FWD per team).
-- [ ] Export final results as a shareable image or PDF.
