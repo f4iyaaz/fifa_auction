@@ -89,6 +89,7 @@ server-driven; clients discover state changes via polling, not by acting on
 local assumptions.
 
 ## Project Structure
+
 fifa_auction/
 ├── .gitignore
 ├── README.md
