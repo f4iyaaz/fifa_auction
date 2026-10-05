@@ -89,6 +89,7 @@ server-driven; clients discover state changes via polling, not by acting on
 local assumptions.
 
 ## Project Structure
+````
 fifa_auction/
 ├── .gitignore
 ├── README.md
@@ -110,3 +111,4 @@ fifa_auction/
 │ ├── App.jsx # All screens, state, and API calls
 │ └── index.css # Design tokens + global styles
 └── node_modules/ # Installed packages (not committed)
+````
