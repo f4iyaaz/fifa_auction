@@ -27,6 +27,8 @@ function App() {
   const [page, setPage] = useState("game");
 
   const [search, setSearch] = useState("");
+  const [positionFilter, setPositionFilter] = useState("");
+  const [minRating, setMinRating] = useState("");
   const [results, setResults] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [bidAmount, setBidAmount] = useState("");
@@ -109,7 +111,12 @@ function App() {
   }
 
   async function handleSearch() {
-    const response = await fetch(`${API_URL}/players?search=${search}`);
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (positionFilter) params.set("position", positionFilter);
+    if (minRating) params.set("min_rating", minRating);
+
+    const response = await fetch(`${API_URL}/players?${params.toString()}`);
     const data = await response.json();
     setResults(data);
   }
@@ -231,6 +238,34 @@ function App() {
                 <button className="btn-sm" onClick={handleSearch}>
                   Search
                 </button>
+              </div>
+
+              <div className="filter-row">
+                <select
+                  value={positionFilter}
+                  onChange={(e) => setPositionFilter(e.target.value)}
+                >
+                  <option value="">Any position</option>
+                  <option value="GK">GK</option>
+                  <option value="CB">CB</option>
+                  <option value="LB">LB</option>
+                  <option value="RB">RB</option>
+                  <option value="CDM">CDM</option>
+                  <option value="CM">CM</option>
+                  <option value="CAM">CAM</option>
+                  <option value="LM">LM</option>
+                  <option value="RM">RM</option>
+                  <option value="LW">LW</option>
+                  <option value="RW">RW</option>
+                  <option value="ST">ST</option>
+                  <option value="CF">CF</option>
+                </select>
+                <input
+                  type="number"
+                  value={minRating}
+                  onChange={(e) => setMinRating(e.target.value)}
+                  placeholder="Min rating"
+                />
               </div>
 
               <div className="search-results">

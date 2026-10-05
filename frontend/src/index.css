@@ -352,3 +352,14 @@ ul {
     min-width: 0;
   }
 }
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-row select,
+.filter-row input {
+  flex: 1;
+}
