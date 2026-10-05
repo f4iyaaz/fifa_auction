@@ -331,4 +331,4 @@ responsive component.
 - [ ] Replace polling with WebSockets for lower-latency live updates.
 - [ ] Add a cap or cooldown on re-calling unsold players.
 - [ ] Position-based squad stats (highest-rated GK/DEF/MID/FWD per team).
-- [ ] Export final results as a shareable image or PDF.
+- [ ] Export final results as a shareable image or PDF
