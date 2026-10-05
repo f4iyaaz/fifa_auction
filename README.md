@@ -1,6 +1,6 @@
 # ⚽ FIFA Auction
 
-A real-time, multiplayer draft-auction app for FIFA squad building. Four friends,
+A real-time, multiplayer draft-auction app for FIFA squad building. Four people,
 one shared player pool, sealed bidding, and a live scoreboard — built as a
 full-stack web app with a React frontend, a FastAPI backend, and MongoDB for
 persistence.
@@ -80,3 +80,33 @@ design-token system (see [Design System](#design-system)).
 │ (Vite dev │ ◀────────────────────── │ (Uvicorn) │ ◀───── │ │
 │ server) │ polling every 2s └──────────────┘ └──────────┘
 └─────────────┘
+
+The backend is the single source of truth for all game state. The frontend
+never trusts or stores sensitive data (bid amounts mid-round, other players'
+participant IDs) — it only renders what the backend explicitly exposes.
+Game state transitions (`LOBBY → BIDDING → FINISHED`) are entirely
+server-driven; clients discover state changes via polling, not by acting on
+local assumptions.
+
+## Project Structure
+fifa_auction/
+├── .gitignore
+├── README.md
+│
+├── backend/
+│ ├── main.py # FastAPI app — all routes and game logic
+│ ├── database.py # MongoDB client/connection setup
+│ ├── requirements.txt # Python dependencies (pip freeze)
+│ ├── data/
+│ │ └── players.json # Source FIFA player dataset (imported into MongoDB)
+│ └── venv/ # Virtual environment (not committed)
+│
+└── frontend/
+├── index.html # Vite entry HTML, Google Fonts links
+├── package.json
+├── vite.config.js
+├── src/
+│ ├── main.jsx # React entry point
+│ ├── App.jsx # All screens, state, and API calls
+│ └── index.css # Design tokens + global styles
+└── node_modules/ # Installed packages (not committed)
