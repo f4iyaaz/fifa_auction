@@ -1,6 +1,6 @@
 # ⚽ FIFA Auction
 
-A real-time, multiplayer draft-auction app for FIFA squad building. Four people,
+A real-time, multiplayer draft-auction app for FIFA squad building. Four participants,
 one shared player pool, sealed bidding, and a live scoreboard — built as a
 full-stack web app with a React frontend, a FastAPI backend, and MongoDB for
 persistence.
