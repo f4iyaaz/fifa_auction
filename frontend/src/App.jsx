@@ -135,6 +135,8 @@ function App() {
     }
 
     fetchWishlist();
+    setSearch("");
+    setResults([]);
   }
 
   async function fetchWishlist() {
@@ -293,10 +295,12 @@ function App() {
 
             <div className="wishlist-col">
               <div className="section-title">Your Wishlist ({wishlist.length})</div>
-              {wishlist.map((p) => (
+              {wishlist.map((p, index) => (
                 <div className="player-row" key={p._id}>
                   <div className="player-info">
-                    <span className="player-name">{p.playerName}</span>
+                    <span className="player-name">
+                      <span className="player-serial">{index + 1}.</span> {p.playerName}
+                    </span>
                   </div>
                   <span className="player-rating">{p.rating}</span>
                 </div>
